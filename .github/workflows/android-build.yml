@@ -34,13 +34,62 @@ jobs:
         run: |
           mkdir -p project-unpacked
           unzip -q CBTA-Video-Downloader.zip -d project-unpacked
+
           PROJECT_DIR="$(find project-unpacked -name settings.gradle.kts -type f -print -quit | xargs -r dirname)"
+
           if [ -z "$PROJECT_DIR" ]; then
             echo "ERROR: settings.gradle.kts was not found."
             exit 1
           fi
+
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Project directory: $PROJECT_DIR"
+
+      - name: Repair and validate XML files
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import xml.etree.ElementTree as ET
+
+          project_dir = Path("project-unpacked")
+
+          xml_files = list(project_dir.rglob("*.xml"))
+
+          if not xml_files:
+              raise SystemExit("ERROR: No XML files were found.")
+
+          for path in xml_files:
+              try:
+                  content = path.read_text(encoding="utf-8-sig")
+
+                  content = re.sub(
+                      r'<\?xml\b.*?\?>',
+                      '',
+                      content,
+                      flags=re.IGNORECASE | re.DOTALL
+                  )
+
+                  content = content.lstrip()
+
+                  content = (
+                      '<?xml version="1.0" encoding="utf-8"?>\n'
+                      + content
+                  )
+
+                  path.write_text(content, encoding="utf-8")
+
+                  ET.parse(path)
+
+                  print(f"XML OK: {path}")
+
+              except Exception as error:
+                  raise SystemExit(
+                      f"ERROR in XML file {path}: {error}"
+                  )
+
+          print(f"Successfully checked {len(xml_files)} XML files.")
+          PY
 
       - name: Build Android APK
         run: gradle -p "$PROJECT_DIR" assembleDebug
