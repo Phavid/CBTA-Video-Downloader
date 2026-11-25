@@ -1,3 +1,4 @@
+
 name: CBTA Android Build
 
 on:
@@ -44,6 +45,13 @@ jobs:
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Project directory: $PROJECT_DIR"
+
+      - name: Upload extracted source code
+        uses: actions/upload-artifact@v4
+        with:
+          name: CBTA-Video-Downloader-Source
+          path: project-unpacked/
+          if-no-files-found: error
 
       - name: Repair and validate XML files
         run: |
